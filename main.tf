@@ -74,3 +74,21 @@ resource "aws_instance" "EC2" {
     Name = "Ec2"
   }
 }
+
+# Create Amazon ECR Repository for the Web Application
+resource "aws_ecr_repository" "web_application" {
+  name = "web-application-repo"  # Name of the repository (you can change this)
+
+  tags = {
+    Name = "web-application-repo"
+  }
+}
+
+# Create Amazon ECR Repository for MySQL Image
+resource "aws_ecr_repository" "mysql" {
+  name = "mysql-repo"  # Name of the repository (you can change this)
+
+  tags = {
+    Name = "mysql-repo"
+  }
+}
