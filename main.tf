@@ -8,6 +8,20 @@ data "aws_vpc" "default" {
   default = true
 }
 
+# Get route table
+data "aws_route_table" "default" {
+  vpc_id = data.aws_vpc.default.id
+}
+
+
+# Get the existing Internet Gateway
+data "aws_internet_gateway" "existing_igw" {
+  filter {
+    name   = "attachment.vpc-id"
+    values = [data.aws_vpc.default.id]
+  }
+}
+
 # Get the default subnet in the default VPC
 data "aws_subnet" "default" {
   vpc_id            = data.aws_vpc.default.id
@@ -67,7 +81,7 @@ resource "aws_instance" "EC2" {
 
   subnet_id            = data.aws_subnet.default.id  # Using the default subnet's ID
   vpc_security_group_ids = [aws_security_group.docker_application_sg.id]  # Attach the security group by ID
-
+  associate_public_ip_address = true
   key_name             = aws_key_pair.web_key.key_name  # Use the generated key pair
 
   tags = {
