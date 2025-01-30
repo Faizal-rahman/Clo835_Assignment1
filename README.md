@@ -3,6 +3,9 @@
 sudo apt-get update -y
 sudo apt-get install mysql-client -y
 ```
+sudo yum install -y https://dev.mysql.com/get/mysql80-community-release-el9-1.noarch.rpm
+sudo yum install -y mysql
+
 
 # Running application locally
 ```
