@@ -5,4 +5,9 @@ sudo yum -y install terraform
 
 for creating sshkey
 
- ssh-keygen -t rsa -b 2048 -f ./sshkey
+ssh-keygen -t rsa -b 2048 -f ./sshkey
+
+
+git config --global user.name "Faizal"
+git config --global user.email "Faizalrahman2000@gmail.com"
+
