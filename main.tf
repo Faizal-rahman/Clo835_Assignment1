@@ -1,6 +1,6 @@
 # Define the AWS provider
 provider "aws" {
-  region = "us-east-1"  # Replace with your desired AWS region
+  region = "us-east-1"  
 }
 
 # Get the default VPC
@@ -11,7 +11,7 @@ data "aws_vpc" "default" {
 # Get the default subnet in the default VPC
 data "aws_subnet" "default" {
   vpc_id            = data.aws_vpc.default.id
-  availability_zone = "us-east-1a"  # Replace with your availability zone if needed
+  availability_zone = "us-east-1a"
 }
 
 # Adding SSH key to Amazon EC2
@@ -62,7 +62,7 @@ resource "aws_security_group" "docker_application_sg" {
 
 # Create EC2 instance in the default subnet
 resource "aws_instance" "EC2" {
-  ami           = "ami-0c614dee691cbbf37"  # Replace with a valid AMI ID for your region
+  ami           = "ami-0c614dee691cbbf37"  
   instance_type = "t2.micro"
 
   subnet_id            = data.aws_subnet.default.id  # Using the default subnet's ID
@@ -77,7 +77,7 @@ resource "aws_instance" "EC2" {
 
 # Create Amazon ECR Repository for the Web Application
 resource "aws_ecr_repository" "web_application" {
-  name = "web-application-repo"  # Name of the repository (you can change this)
+  name = "web-application-repo"  # Name of the repository 
 
   tags = {
     Name = "web-application-repo"
@@ -86,7 +86,7 @@ resource "aws_ecr_repository" "web_application" {
 
 # Create Amazon ECR Repository for MySQL Image
 resource "aws_ecr_repository" "mysql" {
-  name = "mysql-repo"  # Name of the repository (you can change this)
+  name = "mysql-repo"  # Name of the repository
 
   tags = {
     Name = "mysql-repo"
