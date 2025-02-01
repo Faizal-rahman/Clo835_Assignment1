@@ -1,4 +1,4 @@
-#16
+#17
 name: Deploy to Amazon EC2
 
 on:
@@ -24,7 +24,6 @@ jobs:
           # Fetch EC2 instance public IP based on the tag Name=Ec2
           EC2_PUBLIC_IP=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=Ec2" --query "Reservations[].Instances[].PublicIpAddress" --output text)
           echo "EC2_PUBLIC_IP=$EC2_PUBLIC_IP" >> $GITHUB_ENV  # Save it as an environment variable
-          echo "EC2_PUBLIC_IP fetched: $EC2_PUBLIC_IP"  # Debugging output
 
       # Step 2: Checkout the repository
       - name: Checkout repository
@@ -46,7 +45,7 @@ jobs:
           chmod 600 private_key.pem  # Secure the private key file
 
           # Ensure EC2_PUBLIC_IP is set
-          echo "EC2_PUBLIC_IP: $EC2_PUBLIC_IP"  # Debugging output
+          echo "EC2_PUBLIC_IP: $EC2_PUBLIC_IP"
 
           # SSH into EC2 instance and run Docker setup
           ssh -i private_key.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ec2-user@$EC2_PUBLIC_IP << 'EOF'
