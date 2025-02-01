@@ -1,4 +1,4 @@
-#18
+#19
 name: Deploy to Amazon EC2
 
 on:
@@ -17,25 +17,27 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Fetch EC2 Public IP dynamically
+      # Step 1: Set up AWS credentials
+      - name: Set up AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # Step 2: Fetch EC2 Public IP by Name tag 'Ec2'
       - name: Fetch EC2 Public IP by Name tag 'Ec2'
         id: ec2-ip
         run: |
           # Fetch EC2 instance public IP based on the tag Name=Ec2
           EC2_PUBLIC_IP=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=Ec2" --query "Reservations[].Instances[].PublicIpAddress" --output text)
           echo "EC2_PUBLIC_IP=$EC2_PUBLIC_IP" >> $GITHUB_ENV  # Save it as an environment variable
+          echo "EC2_PUBLIC_IP fetched: $EC2_PUBLIC_IP"  # Debugging output
 
-      # Step 2: Checkout the repository
+      # Step 3: Checkout the repository
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      # Step 3: Set up AWS credentials
-      - name: Set up AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
 
       # Step 4: Save EC2 private key and SSH into EC2 instance
       - name: SSH into EC2 instance, install Docker, and run containers
@@ -45,7 +47,7 @@ jobs:
           chmod 600 private_key.pem  # Secure the private key file
 
           # Ensure EC2_PUBLIC_IP is set
-          echo "EC2_PUBLIC_IP: $EC2_PUBLIC_IP"
+          echo "EC2_PUBLIC_IP: $EC2_PUBLIC_IP"  # Debugging output
 
           # SSH into EC2 instance and run Docker setup
           ssh -i private_key.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ec2-user@$EC2_PUBLIC_IP << 'EOF'
