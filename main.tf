@@ -50,10 +50,10 @@ resource "aws_security_group" "docker_application_sg" {
 
   ingress {
     from_port   = 8080
-    to_port     = 8080
+    to_port     = 8083
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]  # Allow access to web application from anywhere
-    description = "Allow HTTP access to web app on port 8080"
+    description = "Allow HTTP access to web app on port 8080 to 8083"
   }
 
   ingress {
