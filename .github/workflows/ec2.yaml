@@ -1,4 +1,4 @@
-#7
+#8
 name: Deploy to Amazon ECR
 on:
   push:
@@ -36,13 +36,13 @@ jobs:
 
       - name: Build and Tag Web Application Docker Image
         run: |
-          docker build -t $ECR_REPOSITORY_WEB:latest
+          docker build -t $ECR_REPOSITORY_WEB:latest -f Dockerfile .
           docker tag $ECR_REPOSITORY_WEB:latest \
           ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY_WEB:latest
 
       - name: Build and Tag MySQL Docker Image
         run: |
-          docker build -t $ECR_REPOSITORY_DB:latest
+          docker build -t $ECR_REPOSITORY_DB:latest -f Dockerfile_mysql .
           docker tag $ECR_REPOSITORY_DB:latest \
           ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY_DB:latest
 
