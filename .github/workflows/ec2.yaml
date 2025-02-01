@@ -1,5 +1,5 @@
 name: Deploy to Amazon ECR
-#1
+#2
 on:
   push:
     branches:
