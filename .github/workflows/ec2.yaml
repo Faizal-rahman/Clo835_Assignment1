@@ -1,5 +1,5 @@
-#8
-name: Deploy to Amazon ECR
+#9
+name: Deploy to Amazon EC2 and ECR
 on:
   push:
     branches:
@@ -9,10 +9,11 @@ env:
   AWS_REGION: us-east-1
   ECR_REPOSITORY_WEB: web-application-repo
   ECR_REPOSITORY_DB: mysql-repo
+  EC2_TAG_NAME: Ec2  # Tag name to filter EC2 instance by
 
 jobs:
   build-and-push:
-    name: Build and Push Docker Images to ECR
+    name: Build, Push Docker Images to ECR, and Deploy to EC2
     runs-on: ubuntu-latest
 
     steps:
@@ -36,7 +37,7 @@ jobs:
 
       - name: Build and Tag Web Application Docker Image
         run: |
-          docker build -t $ECR_REPOSITORY_WEB:latest -f Dockerfile .
+          docker build -t $ECR_REPOSITORY_WEB:latest -f docker .
           docker tag $ECR_REPOSITORY_WEB:latest \
           ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY_WEB:latest
 
@@ -53,3 +54,39 @@ jobs:
       - name: Push MySQL Image to Amazon ECR
         run: |
           docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY_DB:latest
+
+      - name: Fetch EC2 Public IP by Name tag 'Ec2'
+        id: ec2-ip
+        run: |
+          EC2_PUBLIC_IP=$(aws ec2 describe-instances \
+            --region $AWS_REGION \
+            --filters "Name=tag:Name,Values=${{ env.EC2_TAG_NAME }}" \
+            --query 'Reservations[0].Instances[0].PublicIpAddress' \
+            --output text)
+          echo "EC2 Public IP: $EC2_PUBLIC_IP"
+          echo "EC2_PUBLIC_IP=$EC2_PUBLIC_IP" >> $GITHUB_ENV
+
+      - name: SSH into EC2 instance, install Docker, and run containers
+        run: |
+          echo "$EC2_KEY_NAME" > private_key.pem
+          chmod 600 private_key.pem
+          ssh -i private_key.pem $SSH_USER@$EC2_PUBLIC_IP << 'EOF'
+            # Update and install dependencies
+            sudo yum update -y
+            sudo yum install -y docker
+            sudo service docker start
+            sudo usermod -aG docker ec2-user  # Allow EC2 user to run Docker commands
+
+            # Pull MySQL and Web Application Images from ECR
+            aws ecr get-login-password --region $AWS_REGION | sudo docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.$AWS_REGION.amazonaws.com
+            sudo docker pull ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY_DB:latest
+            sudo docker pull ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY_WEB:latest
+
+            # Run MySQL container
+            sudo docker run -d --name mysql-container -e MYSQL_ROOT_PASSWORD=rootpassword ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY_DB:latest
+
+            # Run 3 Web Application Containers on different ports (8081, 8082, 8083)
+            sudo docker run -d --name webapp-8081 -p 8081:80 ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY_WEB:latest
+            sudo docker run -d --name webapp-8082 -p 8082:80 ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY_WEB:latest
+            sudo docker run -d --name webapp-8083 -p 8083:80 ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY_WEB:latest
+          EOF
