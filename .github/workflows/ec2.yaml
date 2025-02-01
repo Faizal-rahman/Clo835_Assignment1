@@ -1,4 +1,4 @@
-#10
+#11
 name: Deploy to Amazon EC2 and ECR
 on:
   push:
@@ -37,7 +37,7 @@ jobs:
 
       - name: Build and Tag Web Application Docker Image
         run: |
-          docker build -t $ECR_REPOSITORY_WEB:latest -f Docker .
+          docker build -t $ECR_REPOSITORY_WEB:latest -f Dockerfile .
           docker tag $ECR_REPOSITORY_WEB:latest \
           ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY_WEB:latest
 
