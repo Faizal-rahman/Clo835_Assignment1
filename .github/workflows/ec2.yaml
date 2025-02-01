@@ -1,4 +1,4 @@
-#20
+#21
 name: Deploy to Amazon EC2
 
 on:
