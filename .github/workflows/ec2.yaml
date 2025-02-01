@@ -59,14 +59,15 @@ jobs:
 
             # Pull MySQL and Web Application Images from ECR
             aws ecr get-login-password --region $AWS_REGION | sudo docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.$AWS_REGION.amazonaws.com
+            docker network create network
             sudo docker pull ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY_DB:latest
             sudo docker pull ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY_WEB:latest
 
             # Run MySQL container
-            sudo docker run -d --name mysql-container -e MYSQL_ROOT_PASSWORD=rootpassword ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY_DB:latest
+            sudo docker run -d --name mysql-container --network network -e MYSQL_ROOT_PASSWORD=rootpassword ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY_DB:latest
 
             # Run 3 Web Application Containers on different ports (8081, 8082, 8083)
-            sudo docker run -d --name webapp-8081 -p 8081:8080 ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY_WEB:latest
-            sudo docker run -d --name webapp-8082 -p 8082:8080 ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY_WEB:latest
-            sudo docker run -d --name webapp-8083 -p 8083:8080 ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY_WEB:latest
+            sudo docker run -d --name webapp-8081 --network network  -p 8081:8080 ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY_WEB:latest
+            sudo docker run -d --name webapp-8082 --network network  -p 8082:8080 ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY_WEB:latest
+            sudo docker run -d --name webapp-8083 --network network  -p 8083:8080 ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY_WEB:latest
           EOF
