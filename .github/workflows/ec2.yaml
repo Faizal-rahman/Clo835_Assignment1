@@ -1,4 +1,4 @@
-#11
+#12
 name: Deploy to Amazon EC2 and ECR
 on:
   push:
@@ -68,7 +68,7 @@ jobs:
 
       - name: SSH into EC2 instance, install Docker, and run containers
         run: |
-          echo "$EC2_KEY_NAME" > private_key.pem
+          echo "$AWS_EC2_KEY_NAME" > private_key.pem
           chmod 600 private_key.pem
           ssh -i private_key.pem $SSH_USER@$EC2_PUBLIC_IP << 'EOF'
             # Update and install dependencies
