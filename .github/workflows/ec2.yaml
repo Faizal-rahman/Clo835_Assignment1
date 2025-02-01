@@ -1,4 +1,4 @@
-#22
+#23
 name: Deploy to Amazon EC2
 
 on:
@@ -50,7 +50,7 @@ jobs:
           echo "EC2_PUBLIC_IP: $EC2_PUBLIC_IP"  # Debugging output
 
           # SSH into EC2 instance and run Docker setup
-          ssh -i private_key.pem -v ec2-user@$EC2_PUBLIC_IP << 'EOF'
+          ssh -i private_key.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -v ec2-user@$EC2_PUBLIC_IP << 'EOF'
             # Update and install dependencies
             sudo yum update -y
             sudo yum install -y docker
