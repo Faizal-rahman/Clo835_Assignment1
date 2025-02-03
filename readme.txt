@@ -11,3 +11,6 @@ ssh-keygen -t rsa -b 2048 -f ./sshkey
 git config --global user.name "Faizal"
 git config --global user.email "Faizalrahman2000@gmail.com"
 
+docker exec -it sql_container mysql -u root -p
+docker exec -it blue-container sh
+apt install inetutils-ping
