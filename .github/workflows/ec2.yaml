@@ -60,7 +60,6 @@ jobs:
       run: |
         echo "Fetching EC2 IP..."
         EC2_IP=$(aws ec2 describe-instances \
-          --region us-east-1 \
           --filters "Name=tag:Name,Values=Ec2" "Name=instance-state-name,Values=running" \
           --query "Reservations[0].Instances[0].PublicIpAddress" \
           --output text)
