@@ -94,8 +94,9 @@ jobs:
 
         # Authenticate to AWS ECR using the output from login-ecr step
         AWS_ACCOUNT_ID=${{ secrets.AWS_ACCOUNT_ID }}  # Alternatively, use 'aws sts get-caller-identity'
-        aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $ECR_REGISTRY
         ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
+        aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $ECR_REGISTRY
+        
 
         # Create Docker network
         docker network create assignment-networks || true
