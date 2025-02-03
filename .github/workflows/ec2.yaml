@@ -101,21 +101,21 @@ jobs:
         docker network create assignment-networks || true
 
         # Pull Docker images
-        docker pull $ECR_REGISTRY/web-application-repo:mywebapp
-        docker pull $ECR_REGISTRY/mysql-repo:mysql
+        docker pull ${{ steps.login-ecr.outputs.registry }}/web-application-repo:mywebapp
+        docker pull ${{ steps.login-ecr.outputs.registry }}/mysql-repo:mysql
 
         # Run MySQL container
-        docker run -d --name sql_container --network assignment-networks -e MYSQL_ROOT_PASSWORD=db_pass123 -e MYSQL_DATABASE=mydb -p 3306:3306 $ECR_REGISTRY/mysql-repo:mysql
+        docker run -d --name sql_container --network assignment-networks -e MYSQL_ROOT_PASSWORD=db_pass123 -e MYSQL_DATABASE=mydb -p 3306:3306 ${{ steps.login-ecr.outputs.registry }}/mysql-repo:mysql
 
         # Wait for MySQL to initialize
         sleep 15
 
         # Run web application containers
-        docker run -d --name blue-container --network assignment-networks -e DBHOST=sql_container -e DBPORT=3306 -e DBUSER=root -e DBPWD=db_pass123 -e DATABASE=mydb -e APP_COLOR=blue -p 8081:8080 $ECR_REGISTRY/web-application-repo:mywebapp
+        docker run -d --name blue-container --network assignment-networks -e DBHOST=sql_container -e DBPORT=3306 -e DBUSER=root -e DBPWD=db_pass123 -e DATABASE=mydb -e APP_COLOR=blue -p 8081:8080 ${{ steps.login-ecr.outputs.registry }}/web-application-repo:mywebapp
 
-        docker run -d --name pink-container --network assignment-networks -e DBHOST=sql_container -e DBPORT=3306 -e DBUSER=root -e DBPWD=db_pass123 -e DATABASE=mydb -e APP_COLOR=pink -p 8082:8080 $ECR_REGISTRY/web-application-repo:mywebapp
+        docker run -d --name pink-container --network assignment-networks -e DBHOST=sql_container -e DBPORT=3306 -e DBUSER=root -e DBPWD=db_pass123 -e DATABASE=mydb -e APP_COLOR=pink -p 8082:8080 ${{ steps.login-ecr.outputs.registry }}/web-application-repo:mywebapp
 
-        docker run -d --name lime-container --network assignment-networks -e DBHOST=sql_container -e DBPORT=3306 -e DBUSER=root -e DBPWD=db_pass123 -e DATABASE=mydb -e APP_COLOR=lime -p 8083:8080 $ECR_REGISTRY/web-application-repo:mywebapp
+        docker run -d --name lime-container --network assignment-networks -e DBHOST=sql_container -e DBPORT=3306 -e DBUSER=root -e DBPWD=db_pass123 -e DATABASE=mydb -e APP_COLOR=lime -p 8083:8080 ${{ steps.login-ecr.outputs.registry }}/web-application-repo:mywebapp
 
         # Show running containers
         docker ps
