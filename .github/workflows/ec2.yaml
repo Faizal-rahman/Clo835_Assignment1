@@ -114,8 +114,5 @@ jobs:
         docker run -d --name pink-container --network assignment-networks -e DBHOST=sql_container -e DBPORT=3306 -e DBUSER=root -e DBPWD=db_pass123 -e DATABASE=mydb -e APP_COLOR=pink -p 8082:8080 ${{ steps.login-ecr.outputs.registry }}/web-application-repo:mywebapp
 
         docker run -d --name lime-container --network assignment-networks -e DBHOST=sql_container -e DBPORT=3306 -e DBUSER=root -e DBPWD=db_pass123 -e DATABASE=mydb -e APP_COLOR=lime -p 8083:8080 ${{ steps.login-ecr.outputs.registry }}/web-application-repo:mywebapp
-
-        # Show running containers
-        docker ps
-
+        
         EOF
