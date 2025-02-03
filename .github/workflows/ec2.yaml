@@ -81,6 +81,7 @@ jobs:
         aws_access_key_id=${{ secrets.AWS_ACCESS_KEY_ID }}
         aws_secret_access_key=${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws_session_token=${{ secrets.AWS_SESSION_TOKEN }}
+        AWS_ACCOUNT_ID=${{ secrets.AWS_ACCOUNT_ID }}
         region=us-east-1
         EOT
         chmod 600 ~/.aws/credentials
@@ -92,7 +93,7 @@ jobs:
         sudo usermod -aG docker ec2-user
 
         # Authenticate to AWS ECR using AWS_ACCOUNT_ID secret
-        AWS_ACCOUNT_ID=${{ secrets.AWS_ACCOUNT_ID }}
+        AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
         aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com
 
         # Create Docker network
