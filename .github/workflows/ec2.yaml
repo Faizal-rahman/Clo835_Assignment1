@@ -1,8 +1,9 @@
-name: Deploy to ECR
-on: 
+name: Deploy to ECR and EC2
+
+on:
   push:
-    branches: 
-      - test
+    branches:
+      - test  # Replace with your desired branch
 
 jobs:
   build:
@@ -81,7 +82,6 @@ jobs:
         aws_access_key_id=${{ secrets.AWS_ACCESS_KEY_ID }}
         aws_secret_access_key=${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws_session_token=${{ secrets.AWS_SESSION_TOKEN }}
-        AWS_ACCOUNT_ID=${{ secrets.AWS_ACCOUNT_ID }}
         region=us-east-1
         EOT
         chmod 600 ~/.aws/credentials
@@ -92,30 +92,32 @@ jobs:
         sudo systemctl enable docker
         sudo usermod -aG docker ec2-user
 
-        # Authenticate to AWS ECR using AWS_ACCOUNT_ID secret
-        AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-        aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com
+        # Authenticate to AWS ECR using the output from login-ecr step
+        AWS_ACCOUNT_ID=${{ secrets.AWS_ACCOUNT_ID }}  # Alternatively, use 'aws sts get-caller-identity'
+        ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
+        aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $ECR_REGISTRY
 
         # Create Docker network
         docker network create assignment-networks || true
 
         # Pull Docker images
-        docker pull $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/web-application-repo:mywebapp
-        docker pull $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/mysql-repo:mysql
+        docker pull $ECR_REGISTRY/web-application-repo:mywebapp
+        docker pull $ECR_REGISTRY/mysql-repo:mysql
 
         # Run MySQL container
-        docker run -d --name sql_container --network assignment-networks -e MYSQL_ROOT_PASSWORD=db_pass123 -e MYSQL_DATABASE=mydb -p 3306:3306 $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/mysql-repo:mysql
+        docker run -d --name sql_container --network assignment-networks -e MYSQL_ROOT_PASSWORD=db_pass123 -e MYSQL_DATABASE=mydb -p 3306:3306 $ECR_REGISTRY/mysql-repo:mysql
 
         # Wait for MySQL to initialize
         sleep 15
 
         # Run web application containers
-        docker run -d --name blue-container --network assignment-networks -e DBHOST=sql_container -e DBPORT=3306 -e DBUSER=root -e DBPWD=db_pass123 -e DATABASE=mydb -e APP_COLOR=blue -p 8081:8080 $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/web-application-repo:mywebapp
+        docker run -d --name blue-container --network assignment-networks -e DBHOST=sql_container -e DBPORT=3306 -e DBUSER=root -e DBPWD=db_pass123 -e DATABASE=mydb -e APP_COLOR=blue -p 8081:8080 $ECR_REGISTRY/web-application-repo:mywebapp
 
-        docker run -d --name pink-container --network assignment-networks -e DBHOST=sql_container -e DBPORT=3306 -e DBUSER=root -e DBPWD=db_pass123 -e DATABASE=mydb -e APP_COLOR=pink -p 8082:8080 $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/web-application-repo:mywebapp
+        docker run -d --name pink-container --network assignment-networks -e DBHOST=sql_container -e DBPORT=3306 -e DBUSER=root -e DBPWD=db_pass123 -e DATABASE=mydb -e APP_COLOR=pink -p 8082:8080 $ECR_REGISTRY/web-application-repo:mywebapp
 
-        docker run -d --name lime-container --network assignment-networks -e DBHOST=sql_container -e DBPORT=3306 -e DBUSER=root -e DBPWD=db_pass123 -e DATABASE=mydb -e APP_COLOR=lime -p 8083:8080 $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/web-application-repo:mywebapp
-        
+        docker run -d --name lime-container --network assignment-networks -e DBHOST=sql_container -e DBPORT=3306 -e DBUSER=root -e DBPWD=db_pass123 -e DATABASE=mydb -e APP_COLOR=lime -p 8083:8080 $ECR_REGISTRY/web-application-repo:mywebapp
+
+        # Show running containers
         docker ps
 
         EOF
