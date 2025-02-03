@@ -1,4 +1,4 @@
-#3
+#1
 name: Deploy to ECR
 on: 
   push:
@@ -43,54 +43,57 @@ jobs:
       run: |
         docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$MYSQL_IMAGE_TAG -f Dockerfile_mysql .
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$MYSQL_IMAGE_TAG
-- name: Save EC2 Private Key
-  run: |
-    echo "${{ secrets.EC2_PRIVATEKEY }}" > private_key.pem
-    chmod 600 private_key.pem
 
-- name: SSH into EC2 and configure Docker container
-  run: |
-    ssh -t -o StrictHostKeyChecking=no -i private_key.pem ec2-user@${{ secrets.EC2_HOST }} << EOF
-    mkdir -p ~/.aws
-    cat <<EOT > ~/.aws/credentials
-    [default]
-    aws_access_key_id=${{ secrets.AWS_ACCESS_KEY_ID }}
-    aws_secret_access_key=${{ secrets.AWS_SECRET_ACCESS_KEY }}
-    aws_session_token=${{ secrets.AWS_SESSION_TOKEN }}
-    region=us-east-1
-    EOT
-    chmod 600 ~/.aws/credentials
+  deploy:
+    name: Deploy to EC2
+    runs-on: ubuntu-latest
+    needs: build
 
-    sudo yum update -y
-    sudo yum install -y docker
-    sudo systemctl start docker
-    sudo systemctl enable docker
-    sudo usermod -aG docker ec2-user
+    steps:
+    - name: Save EC2 Private Key
+      run: |
+        echo "${{ secrets.EC2_PRIVATEKEY }}" > private_key.pem
+        chmod 600 private_key.pem
 
-    # Authenticate to AWS ECR
-    AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-    aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com
+    - name: SSH into EC2 and configure Docker container
+      run: |
+        ssh -t -o StrictHostKeyChecking=no -i private_key.pem ec2-user@${{ secrets.EC2_HOST }} << EOF
+        mkdir -p ~/.aws
+        cat <<EOT > ~/.aws/credentials
+        [default]
+        aws_access_key_id=${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws_secret_access_key=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws_session_token=${{ secrets.AWS_SESSION_TOKEN }}
+        region=us-east-1
+        EOT
+        chmod 600 ~/.aws/credentials
 
-    # Create Docker network
-    docker network create assignment-networks || true
+        sudo yum update -y
+        sudo yum install -y docker
+        sudo systemctl start docker
+        sudo systemctl enable docker
+        sudo usermod -aG docker ec2-user
 
-    # Pull Docker images
-    docker pull $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/web-application-repo:mywebapp
-    docker pull $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/mysql-repo:mysql
+        # Authenticate to AWS ECR
+        AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+        aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com
 
-    # Run MySQL container
-    docker run -d --name sql_container --network assignment-networks -e MYSQL_ROOT_PASSWORD=db_pass123 -e MYSQL_DATABASE=mydb -p 3306:3306 $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/mysql-assignment1:mysql
+        # Create Docker network
+        docker network create assignment-networks || true
 
-    # Wait for MySQL to initialize
-    sleep 15
+        # Pull Docker images
+        docker pull $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/web-application-repo:mywebapp
+        docker pull $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/mysql-repo:mysql
 
-    # Run web application containers
-    docker run -d --name blue-container --network assignment-networks -e DBHOST=sql_container -e DBPORT=3306 -e DBUSER=root -e DBPWD=db_pass123 -e DATABASE=mydb -e APP_COLOR=blue -p 8081:8080 $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/webapp-assignment1:mywebapp
+        # Run MySQL container
+        docker run -d --name sql_container --network assignment-networks -e MYSQL_ROOT_PASSWORD=db_pass123 -e MYSQL_DATABASE=mydb -p 3306:3306 $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/mysql-repo:mysql
 
-    docker run -d --name pink-container --network assignment-networks -e DBHOST=sql_container -e DBPORT=3306 -e DBUSER=root -e DBPWD=db_pass123 -e DATABASE=mydb -e APP_COLOR=pink -p 8082:8080 $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/webapp-assignment1:mywebapp
+        # Wait for MySQL to initialize
+        sleep 15
 
-    docker run -d --name lime-container --network assignment-networks -e DBHOST=sql_container -e DBPORT=3306 -e DBUSER=root -e DBPWD=db_pass123 -e DATABASE=mydb -e APP_COLOR=lime -p 8083:8080 $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/webapp-assignment1:mywebapp
+        # Run web application containers
+        docker run -d --name blue-container --network assignment-networks -e DBHOST=sql_container -e DBPORT=3306 -e DBUSER=root -e DBPWD=db_pass123 -e DATABASE=mydb -e APP_COLOR=blue -p 8081:8080 $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/web-application-repo:mywebapp
 
-    # Show running containers
-    docker ps -a
-    EOF
+        docker run -d --name pink-container --network assignment-networks -e DBHOST=sql_container -e DBPORT=3306 -e DBUSER=root -e DBPWD=db_pass123 -e DATABASE=mydb -e APP_COLOR=pink -p 8082:8080 $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/web-application-repo:mywebapp
+
+        docker run -d --name lime-container --network assignment-networks -e DBHOST=sql_container -e DBPORT=3306 -e DBUSER=root -e DBPWD=db_pass123 -e DATABASE=mydb -e APP_COLOR=lime -p 808
