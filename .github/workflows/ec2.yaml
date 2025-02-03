@@ -97,6 +97,7 @@ jobs:
 
         # Authenticate to AWS ECR
         AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+        echo "AWS Account ID: $AWS_ACCOUNT_ID"
         aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com
 
         # Create Docker network
@@ -111,6 +112,10 @@ jobs:
 
         # Wait for MySQL to initialize
         sleep 15
+        
+        aws ecr describe-images --repository-name web-application-repo --region us-east-1
+        aws ecr describe-images --repository-name mysql-repo --region us-east-1
+
 
         # Run web application containers
         docker run -d --name blue-container --network assignment-networks -e DBHOST=sql_container -e DBPORT=3306 -e DBUSER=root -e DBPWD=db_pass123 -e DATABASE=mydb -e APP_COLOR=blue -p 8081:8080 $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/web-application-repo:mywebapp
