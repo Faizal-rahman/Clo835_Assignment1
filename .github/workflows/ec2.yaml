@@ -93,9 +93,8 @@ jobs:
         sudo usermod -aG docker ec2-user
 
         # Authenticate to AWS ECR using the output from login-ecr step
-        AWS_ACCOUNT_ID=${{ secrets.AWS_ACCOUNT_ID }}  # Alternatively, use 'aws sts get-caller-identity'
-        ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
-        aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $ECR_REGISTRY
+        AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+        aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com
         
 
         # Create Docker network
