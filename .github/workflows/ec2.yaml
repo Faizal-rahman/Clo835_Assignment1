@@ -1,74 +1,49 @@
-#2
-name: Deploy to Amazon EC2
-
-on:
-  push:
-    branches:
+#1
+name: Deploy to ECR
+on: 
+  Push:
+    branches: 
       - test
-
-env:
-  AWS_REGION: us-east-1
-  ECR_REPOSITORY_WEB: web-application-repo
-  ECR_REPOSITORY_DB: mysql-repo
-  EC2_TAG_NAME: Ec2
+    types:
+      - closed
 
 jobs:
-  deploy:
+  build:
+    if: github.event.pull_request.merged == true
+    name: Build and Push Images
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Set up AWS credentials
-      - name: Set up AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
-          aws-region: ${{ env.AWS_REGION }}
+    - name: Check out code
+      uses: actions/checkout@v2
 
-      # Step 2: Fetch EC2 Public IP by Name tag 'Ec2'
-      - name: Fetch EC2 Public IP by Name tag 'Ec2'
-        id: ec2-ip
-        run: |
-          # Fetch EC2 instance public IP based on the tag Name=Ec2
-          EC2_PUBLIC_IP=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=Ec2" --query "Reservations[].Instances[].PublicIpAddress" --output text)
-          echo "EC2_PUBLIC_IP=$EC2_PUBLIC_IP" >> $GITHUB_ENV  # Save it as an environment variable
-          echo "EC2_PUBLIC_IP fetched: $EC2_PUBLIC_IP"  # Debugging output
+    - name: Set up AWS credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+        aws-region: us-east-1
 
-      # Step 3: Checkout the repository
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
 
-      # Step 4: Save EC2 private key and SSH into EC2 instance
-      - name: SSH into EC2 instance, install Docker, and run containers
-        run: |
-          # Save the private key from the GitHub secret to a file
-          echo "${{ secrets.AWS_EC2_PRIVATE_KEY }}" | base64 --decode > private_key.pem
-          chmod +x private_key.pem  # Secure the private key file
+    - name: Build, test, tag, and push application image to Amazon ECR
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REPOSITORY: web-application-repo
+        APPLICATION_IMAGE_TAG: mywebapp
+      run: |
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$APPLICATION_IMAGE_TAG .
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$APPLICATION_IMAGE_TAG
 
-          # Ensure EC2_PUBLIC_IP is set
-          echo "EC2_PUBLIC_IP: $EC2_PUBLIC_IP"  # Debugging output
-          echo "First few characters of the key: $(head -c 20 private_key.pem) [REDACTED]"
+    - name: Build, test, tag, and push MySQL image to Amazon ECR
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REPOSITORY: mysql-repo
+        MYSQL_IMAGE_TAG: mysql
+      run: |
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$MYSQL_IMAGE_TAG -f Dockerfile_mysql .
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$MYSQL_IMAGE_TAG
 
-          # SSH into EC2 instance and run Docker setup
-          sudo ssh -t -o StrictHostKeyChecking=no -i "private_key.pem" ec2-user@$EC2_PUBLIC_IP -o UserKnownHostsFile=/dev/null -v << 'EOF'
-            # Update and install dependencies
-            sudo yum update -y
-            sudo yum install -y docker
-            sudo service docker start
-            sudo usermod -aG docker ec2-user  # Allow EC2 user to run Docker commands
-
-            # Pull MySQL and Web Application Images from ECR
-            aws ecr get-login-password --region $AWS_REGION | sudo docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.$AWS_REGION.amazonaws.com
-            docker network create network
-            sudo docker pull ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY_DB:latest
-            sudo docker pull ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY_WEB:latest
-
-            # Run MySQL container
-            sudo docker run -d --name mysql-container --network network -e MYSQL_ROOT_PASSWORD=rootpassword ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY_DB:latest
-
-            # Run 3 Web Application Containers on different ports (8081, 8082, 8083)
-            sudo docker run -d --name webapp-8081 --network network  -p 8081:8080 ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY_WEB:latest
-            sudo docker run -d --name webapp-8082 --network network  -p 8082:8080 ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY_WEB:latest
-            sudo docker run -d --name webapp-8083 --network network  -p 8083:8080 ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY_WEB:latest
-          EOF
