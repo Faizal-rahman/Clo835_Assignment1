@@ -4,8 +4,6 @@ on:
   Push:
     branches: 
       - test
-    types:
-      - closed
 
 jobs:
   build:
