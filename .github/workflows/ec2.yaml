@@ -1,4 +1,4 @@
-#1
+#2
 name: Deploy to Amazon EC2
 
 on:
@@ -48,6 +48,7 @@ jobs:
 
           # Ensure EC2_PUBLIC_IP is set
           echo "EC2_PUBLIC_IP: $EC2_PUBLIC_IP"  # Debugging output
+          echo "First few characters of the key: $(head -c 20 private_key.pem) [REDACTED]"
 
           # SSH into EC2 instance and run Docker setup
           sudo ssh -t -o StrictHostKeyChecking=no -i "private_key.pem" ec2-user@$EC2_PUBLIC_IP -o UserKnownHostsFile=/dev/null -v << 'EOF'
