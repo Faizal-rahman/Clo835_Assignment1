@@ -1,5 +1,6 @@
-#1
+#2
 name: Deploy to ECR
+
 on: 
   push:
     branches: 
@@ -12,10 +13,10 @@ jobs:
 
     steps:
     - name: Check out code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: Set up AWS credentials
-      uses: aws-actions/configure-aws-credentials@v1
+      uses: aws-actions/configure-aws-credentials@v2
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -26,74 +27,10 @@ jobs:
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v1
 
-    - name: Build, test, tag, and push application image to Amazon ECR
+    - name: Build, tag, and push application image to Amazon ECR
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         ECR_REPOSITORY: web-application-repo
         APPLICATION_IMAGE_TAG: mywebapp
       run: |
-        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$APPLICATION_IMAGE_TAG .
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$APPLICATION_IMAGE_TAG
-
-    - name: Build, test, tag, and push MySQL image to Amazon ECR
-      env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        ECR_REPOSITORY: mysql-repo
-        MYSQL_IMAGE_TAG: mysql
-      run: |
-        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$MYSQL_IMAGE_TAG -f Dockerfile_mysql .
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$MYSQL_IMAGE_TAG
-
-  deploy:
-    name: Deploy to EC2
-    runs-on: ubuntu-latest
-    needs: build
-
-    steps:
-    - name: Save EC2 Private Key
-      run: |
-        echo "${{ secrets.EC2_PRIVATEKEY }}" > private_key.pem
-        chmod 600 private_key.pem
-
-    - name: SSH into EC2 and configure Docker container
-      run: |
-        ssh -t -o StrictHostKeyChecking=no -i private_key.pem ec2-user@${{ secrets.EC2_HOST }} << EOF
-        mkdir -p ~/.aws
-        cat <<EOT > ~/.aws/credentials
-        [default]
-        aws_access_key_id=${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws_secret_access_key=${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws_session_token=${{ secrets.AWS_SESSION_TOKEN }}
-        region=us-east-1
-        EOT
-        chmod 600 ~/.aws/credentials
-
-        sudo yum update -y
-        sudo yum install -y docker
-        sudo systemctl start docker
-        sudo systemctl enable docker
-        sudo usermod -aG docker ec2-user
-
-        # Authenticate to AWS ECR
-        AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-        aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com
-
-        # Create Docker network
-        docker network create assignment-networks || true
-
-        # Pull Docker images
-        docker pull $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/web-application-repo:mywebapp
-        docker pull $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/mysql-repo:mysql
-
-        # Run MySQL container
-        docker run -d --name sql_container --network assignment-networks -e MYSQL_ROOT_PASSWORD=db_pass123 -e MYSQL_DATABASE=mydb -p 3306:3306 $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/mysql-repo:mysql
-
-        # Wait for MySQL to initialize
-        sleep 15
-
-        # Run web application containers
-        docker run -d --name blue-container --network assignment-networks -e DBHOST=sql_container -e DBPORT=3306 -e DBUSER=root -e DBPWD=db_pass123 -e DATABASE=mydb -e APP_COLOR=blue -p 8081:8080 $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/web-application-repo:mywebapp
-
-        docker run -d --name pink-container --network assignment-networks -e DBHOST=sql_container -e DBPORT=3306 -e DBUSER=root -e DBPWD=db_pass123 -e DATABASE=mydb -e APP_COLOR=pink -p 8082:8080 $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/web-application-repo:mywebapp
-
-        docker run -d --name lime-container --network assignment-networks -e DBHOST=sql_container -e DBPORT=3306 -e DBUSER=root -e DBPWD=db_pass123 -e DATABASE=mydb -e APP_COLOR=lime -p 808
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$APPLICATION_IMAGE_TAG
