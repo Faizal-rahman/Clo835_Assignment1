@@ -1,6 +1,4 @@
-#2
 name: Deploy to ECR
-
 on: 
   push:
     branches: 
@@ -13,10 +11,10 @@ jobs:
 
     steps:
     - name: Check out code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v2
 
     - name: Set up AWS credentials
-      uses: aws-actions/configure-aws-credentials@v2
+      uses: aws-actions/configure-aws-credentials@v1
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -27,7 +25,7 @@ jobs:
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v1
 
-    - name: Build, tag, and push application image to Amazon ECR
+    - name: Build, test, tag, and push application image to Amazon ECR
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         ECR_REPOSITORY: web-application-repo
@@ -36,7 +34,7 @@ jobs:
         docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$APPLICATION_IMAGE_TAG .
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$APPLICATION_IMAGE_TAG
 
-    - name: Build, tag, and push MySQL image to Amazon ECR
+    - name: Build, test, tag, and push MySQL image to Amazon ECR
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         ECR_REPOSITORY: mysql-repo
@@ -51,14 +49,6 @@ jobs:
     needs: build
 
     steps:
-    - name: Set up AWS credentials
-      uses: aws-actions/configure-aws-credentials@v2
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
-        aws-region: us-east-1
-
     - name: Save EC2 Private Key
       run: |
         echo "${{ secrets.EC2_PRIVATEKEY }}" > private_key.pem
@@ -95,9 +85,8 @@ jobs:
         sudo systemctl enable docker
         sudo usermod -aG docker ec2-user
 
-        # Authenticate to AWS ECR
-        AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-        echo "AWS Account ID: $AWS_ACCOUNT_ID"
+        # Authenticate to AWS ECR using AWS_ACCOUNT_ID secret
+        AWS_ACCOUNT_ID=${{ secrets.AWS_ACCOUNT_ID }}
         aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com
 
         # Create Docker network
@@ -112,10 +101,6 @@ jobs:
 
         # Wait for MySQL to initialize
         sleep 15
-        
-        aws ecr describe-images --repository-name web-application-repo --region us-east-1
-        aws ecr describe-images --repository-name mysql-repo --region us-east-1
-
 
         # Run web application containers
         docker run -d --name blue-container --network assignment-networks -e DBHOST=sql_container -e DBPORT=3306 -e DBUSER=root -e DBPWD=db_pass123 -e DATABASE=mydb -e APP_COLOR=blue -p 8081:8080 $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/web-application-repo:mywebapp
@@ -124,7 +109,6 @@ jobs:
 
         docker run -d --name lime-container --network assignment-networks -e DBHOST=sql_container -e DBPORT=3306 -e DBUSER=root -e DBPWD=db_pass123 -e DATABASE=mydb -e APP_COLOR=lime -p 8083:8080 $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/web-application-repo:mywebapp
         
-        # Show running containers
-        docker ps -a
+        docker ps
         
         EOF
