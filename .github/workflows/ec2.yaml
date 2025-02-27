@@ -1,4 +1,4 @@
-#4
+#5
 name: Deploy to Amazon ECR and EC2
 
 on: 
