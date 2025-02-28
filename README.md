@@ -1,5 +1,5 @@
 # Clo835_Assignment1
-3
+4
 For installing terraform
 
 sudo yum-config-manager --add-repo https://rpm.releases.hashicorp.com/AmazonLinux/hashicorp.repo
