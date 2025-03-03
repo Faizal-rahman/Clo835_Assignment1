@@ -77,12 +77,16 @@ resource "aws_security_group" "docker_application_sg" {
 # Create EC2 instance in the default subnet
 resource "aws_instance" "EC2" {
   ami           = "ami-0c614dee691cbbf37"  
-  instance_type = "t2.micro"
+  instance_type = "t3.medium"
 
   subnet_id            = data.aws_subnet.default.id  # Using the default subnet's ID
   vpc_security_group_ids = [aws_security_group.docker_application_sg.id]  # Attach the security group by ID
   associate_public_ip_address = true
   key_name             = aws_key_pair.web_key.key_name  # Use the generated key pair
+  root_block_device {
+    volume_size = 50        # Specify the size of the root volume in GB
+    volume_type = "gp2"     # General purpose SSD
+  }
 
   tags = {
     Name = "Ec2"
