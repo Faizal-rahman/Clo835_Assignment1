@@ -64,6 +64,14 @@ resource "aws_security_group" "docker_application_sg" {
     description = "Allow MySQL access (consider restricting for security)"
   }
 
+  ingress {
+    from_port   = 30000
+    to_port     = 30000
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]  # Allow access to port 30000 from anywhere
+    description = "Allow traffic on port 30000"
+  }
+
   # Outbound rules (Egress)
   egress {
     from_port   = 0
